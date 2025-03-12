@@ -112,10 +112,6 @@ header {
   flex: 1;
 }
 
-.header-center {
-  text-align: center;
-}
-
 .logo {
   font-size: 1.5rem;
   font-weight: 500;
