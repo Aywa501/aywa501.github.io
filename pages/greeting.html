@@ -1,1 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Greeting</title>
+  </head>
+  <body>
+    <h1 id="greeting"></h1>
+
+    <script>
+      const hour = new Date().getHours();
+      let message = "";
+
+      if (hour >= 5 && hour < 12) {
+        message = "Good morning";
+      } else if (hour >= 12 && hour < 18) {
+        message = "Good evening";
+      } else {
+        message = "Good night";
+      }
+
+      document.getElementById("greeting").textContent = message;
+    </script>
+  </body>
+</html>
 
