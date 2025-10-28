@@ -14,15 +14,6 @@ body {
     padding: 20px;
 }
 
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    background-color: white;
-    min-height: 100vh;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-}
-
 /* Header */
 header {
     text-align: center;
