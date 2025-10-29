@@ -1,25 +1,29 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Greeting</title>
+    <meta charset="UTF-8">
+    <title>Greeting Image</title>
   </head>
   <body>
-    <p id="greeting"></p>
+    <img id="img">
 
     <script>
       const hour = new Date().getHours();
-      let message = "";
+      let folder =
+        hour >= 5 && hour < 12 ? "morning" :
+        hour >= 12 && hour < 17 ? "afternoon" :
+        hour >= 17 && hour < 21 ? "evening" : "night";
 
-      if (hour >= 5 && hour < 12) {
-        message = "Good morning";
-      } else if (hour >= 12 && hour < 18) {
-        message = "Good evening";
-      } else {
-        message = "Good night";
-      }
+      const counts = { morning: 5, afternoon: 2, evening: 3, night: 5 };
+      const exts = [".gif", ".jpg", ".png", ".webp"];
+      const n = Math.floor(Math.random() * counts[folder]) + 1;
+      const img = document.getElementById("img");
 
-      document.getElementById("greeting").textContent = message;
+      (function tryExt(i = 0) {
+        if (i >= exts.length) return;
+        img.onerror = () => tryExt(i + 1);
+        img.src = `assets/${folder}/${n}${exts[i]}`;
+      })();
     </script>
   </body>
 </html>
-
