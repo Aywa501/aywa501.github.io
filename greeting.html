@@ -22,7 +22,7 @@
       (function tryExt(i = 0) {
         if (i >= exts.length) return;
         img.onerror = () => tryExt(i + 1);
-        img.src = `assets/${folder}/${n}${exts[i]}`;
+        img.src = `assets/greeting/${folder}/${n}${exts[i]}`;
       })();
     </script>
   </body>
