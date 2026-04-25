@@ -2,7 +2,9 @@ Ranking is determined by personal preference
 
 ### S tier:
 **Trader Joe's California Extra Virgin Olive Oil**
+
 <img src="assets/blogs/2/IMG_3349.jpeg" alt="olive oil" width="300">
+
 Notes:
 - Due to translucency and darker color, almost indistinguishable from original contents except viscosity
 - Excellent shock value
@@ -11,7 +13,9 @@ Notes:
 - Suprisingly decent shock resistance (dropped it a few times, still ok!) although I imagine if there were more serious drops it would shatter quite easily
 ### A tier
 **Marukan Rice Vinegar (12 fl oz)**
+
 <img src="assets/blogs/2/IMG_3353.jpeg" alt="rice vinegar" width="300">
+
 Notes:
 - Due to base color of rice vinegar, passes quite well despite original content having slight yellow tinge
 - Excellent shock value
@@ -20,7 +24,9 @@ Notes:
 - Shock resistance not as good, broke my first one, but the lid is quite hardy, so unlike the thin metal ones, it is still good as new
 
 **Argo Corn Starch (16 oz)**
+
 <img src="assets/blogs/2/IMG_3357.jpeg" alt="corn starch" width="300">
+
 Notes:
 - Opaque shell, prior to drinking contents are indistinguishable from the original
 - Excellent shock value when opening, but after opening the illusion is broken
@@ -28,8 +34,10 @@ Notes:
 - Good capacity (~450ml)
 - Shock resistance excellent due to plastic shell, will almost never break
 
-**Pantene Pro-V Shampoo Bottle (12 oz)** 
+**Pantene Pro-V Shampoo Bottle (12 oz)**
+
 <img src="assets/blogs/2/IMG_3359.jpeg" alt="shampoo" width="300">
+
 Notes:
 - Opaque shell, prior to drinking contents (and even potentially after if managed well), contents are indistinguishable from the original
 - Extremely good shock value, only reason it's in A tier tbh despite drawbacks
