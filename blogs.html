@@ -6,26 +6,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blogs</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 
 <body>
     <header>
-        <h1>Blogs</h1>
+        <h1 id="page-title">Blogs</h1>
     </header>
 
-    <nav>
+    <nav id="page-nav">
         <a href="index.html">Home</a>
     </nav>
 
-    <main>
-        <h3>Posts</h3>
-        <ul>
-            <li>
-                <a href="blogs/lorem_ipsum.html">lorem ipsum</a> - <span>April 13, 2026</span>
-            </li>
-        </ul>
-    </main>
+    <main id="page-main"></main>
 
+    <script>
+        async function loadManifest() {
+            const res = await fetch('assets/blogs/index.json');
+            return res.json();
+        }
+
+        function renderList(posts) {
+            document.getElementById('page-title').textContent = 'Blogs';
+            document.getElementById('page-nav').innerHTML = '<a href="index.html">Home</a>';
+            document.getElementById('page-main').innerHTML =
+                '<h3>Posts</h3><ul>' +
+                posts.map(p =>
+                    `<li><a href="#${p.slug}">${p.title}</a> - <span>${p.date}</span></li>`
+                ).join('') +
+                '</ul>';
+        }
+
+        async function renderPost(slug, posts) {
+            const post = posts.find(p => p.slug === slug);
+            if (!post) { renderList(posts); return; }
+
+            const res = await fetch(`assets/blogs/${slug}.md`);
+            if (!res.ok) { renderList(posts); return; }
+            const md = await res.text();
+
+            document.getElementById('page-title').textContent = post.title;
+            document.getElementById('page-nav').innerHTML = '<a href="blogs.html">back</a>';
+            document.getElementById('page-main').innerHTML =
+                `<p><i>${post.date}</i></p>` + marked.parse(md);
+        }
+
+        async function route(posts) {
+            const slug = location.hash.slice(1);
+            if (slug) {
+                await renderPost(slug, posts);
+            } else {
+                renderList(posts);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const posts = await loadManifest();
+            await route(posts);
+            window.addEventListener('hashchange', () => route(posts));
+        });
+    </script>
 </body>
 
 </html>
