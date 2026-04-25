@@ -1,4 +1,3 @@
-
 Ranking is determined by personal preference
 
 ### S tier:
