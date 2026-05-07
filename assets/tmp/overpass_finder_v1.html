@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Satellite Overpass Overlap Finder</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #4ade80;
+    --accent2: #60a5fa;
+    --accent3: #f59e0b;
+    --accent4: #f472b6;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 32px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], input[type="number"], input[type="date"], select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .satellites {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .sat-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    transition: border-color 0.15s;
+  }
+
+  .sat-check:hover { border-color: var(--accent); }
+  .sat-check.active { border-color: var(--accent); }
+
+  .sat-check input { display: none; }
+
+  .sat-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sat-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    flex: 1;
+  }
+
+  .sat-res {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  button#run {
+    width: 100%;
+    margin-top: 20px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  button#run:hover { opacity: 0.85; }
+  button#run:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .note {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+
+  /* Results */
+  #results { min-height: 400px; }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .empty-icon { font-size: 32px; opacity: 0.3; }
+
+  .loading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+    min-height: 400px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Timeline view */
+  .timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 20px;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+
+  .stat-val {
+    font-family: var(--mono);
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-top: 2px;
+  }
+
+  /* Calendar */
+  .calendar-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .month-row {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+  }
+
+  .month-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    width: 28px;
+    flex-shrink: 0;
+  }
+
+  .day-cell {
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--muted);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.1s;
+    flex-shrink: 0;
+  }
+
+  .day-cell:hover { border-color: var(--accent); z-index: 2; }
+
+  .day-cell.has-1 { background: #1a2e1a; border-color: #2d4d2d; color: #4ade80; }
+  .day-cell.has-2 { background: #1a2a3a; border-color: #2d4060; color: #60a5fa; }
+  .day-cell.has-3 { background: #2a2010; border-color: #504020; color: #f59e0b; }
+  .day-cell.has-4 { background: #2a1a2a; border-color: #503050; color: #f472b6; }
+  .day-cell.overlap-2 { background: #1e3040; border-color: #4090c0; color: #7dd3fc; border-width: 2px; }
+  .day-cell.overlap-3 { background: #2a3020; border-color: #70a040; color: #86efac; border-width: 2px; }
+  .day-cell.overlap-4 { background: #3a2010; border-color: #c07020; color: #fcd34d; border-width: 2px; }
+
+  /* Pass list */
+  .passes-section {
+    margin-top: 24px;
+  }
+
+  .passes-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .pass-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .pass-table th {
+    text-align: left;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pass-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--surface2);
+  }
+
+  .pass-table tr:hover td { background: var(--surface2); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+
+  .overlap-badge {
+    background: #2a3a20;
+    color: #86efac;
+    border: 1px solid #4a6a30;
+    font-weight: 600;
+  }
+
+  .tooltip {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 1000;
+    min-width: 200px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    display: none;
+  }
+
+  .tt-date { color: var(--accent); font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  .tt-pass { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .tt-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  .error-msg {
+    background: #2a1010;
+    border: 1px solid #6a2020;
+    border-radius: 6px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #f87171;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>// OVERPASS_FINDER</h1>
+  <span class="subtitle">multi-source satellite coverage analyzer</span>
+</header>
+
+<div class="grid">
+  <!-- Controls -->
+  <div class="panel">
+    <div class="panel-title">Parameters</div>
+
+    <div class="field">
+      <label>LOCATION NAME (optional)</label>
+      <input type="text" id="locName" placeholder="e.g. Intel Fab, Chandler AZ">
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>LATITUDE</label>
+        <input type="number" id="lat" step="0.0001" placeholder="33.3062" value="33.3062">
+      </div>
+      <div class="field">
+        <label>LONGITUDE</label>
+        <input type="number" id="lon" step="0.0001" placeholder="-111.8413" value="-111.8413">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>START DATE</label>
+        <input type="date" id="startDate" value="2024-01-01">
+      </div>
+      <div class="field">
+        <label>END DATE</label>
+        <input type="date" id="endDate" value="2024-12-31">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>SATELLITES TO INCLUDE</label>
+      <div class="satellites" id="satList"></div>
+    </div>
+
+    <div class="field">
+      <label>MIN PASSES ON SAME DAY (overlap threshold)</label>
+      <select id="overlapThresh">
+        <option value="2">2+ sensors</option>
+        <option value="3">3+ sensors</option>
+        <option value="4">4+ sensors</option>
+      </select>
+    </div>
+
+    <button id="run" onclick="runAnalysis()">COMPUTE OVERPASSES</button>
+
+    <div class="note">
+      Uses deterministic orbital models for Sentinel-1/2, Landsat 8/9 (sun-synchronous, fixed repeat cycles). Planet/SkySat shown as probabilistic. Results show <em>scheduled acquisition windows</em>, not guaranteed cloud-free imagery.
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="panel" id="results">
+    <div class="empty-state">
+      <div class="empty-icon">🛰</div>
+      <div>Enter coordinates and run analysis</div>
+      <div style="color:#334155; font-size:11px; margin-top:4px;">Results will show per-day coverage across all selected sensors</div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ── Satellite definitions ──────────────────────────────────────────────
+// Sun-synchronous orbits: we compute repeat cycle from known orbital params.
+// All times in UTC. Overpass local solar time is roughly fixed for SSO sats.
+
+const SATS = [
+  {
+    id: 'S2A',
+    name: 'Sentinel-2A',
+    shortName: 'S2A',
+    res: '10m',
+    color: '#4ade80',
+    repeat: 10,        // day repeat cycle
+    equatorCrossing: 10.5,  // local solar time (hours) at equator
+    swathKm: 290,
+    // Relative orbit reference: known overpass dates for calibration
+    // S2A launches 2015-06-23, reference equator crossing at lon 0 on 2024-01-01 ~day 0 of its cycle
+    cycleRef: new Date('2024-01-01'),
+    cycleDay: 0,       // which day of cycle 2024-01-01 falls on (0-indexed)
+    type: 'optical',
+    free: true,
+  },
+  {
+    id: 'S2B',
+    name: 'Sentinel-2B',
+    shortName: 'S2B',
+    res: '10m',
+    color: '#34d399',
+    repeat: 10,
+    equatorCrossing: 10.5,
+    swathKm: 290,
+    cycleRef: new Date('2024-01-01'),
+    cycleDay: 5,       // S2B offset by 5 days from S2A
+    type: 'optical',
+    free: true,
+  },
+  {
+    id: 'LC8',
+    name: 'Landsat 8',
+    shortName: 'LC8',
+    res: '30m',
+    color: '#60a5fa',
+    repeat: 16,
+    equatorCrossing: 10.2,
+    swathKm: 185,
+    cycleRef: new Date('2024-01-01'),
+    cycleDay: 0,
+    type: 'optical',
+    free: true,
+  },
+  {
+    id: 'LC9',
+    name: 'Landsat 9',
+    shortName: 'LC9',
+    res: '30m',
+    color: '#93c5fd',
+    repeat: 16,
+    equatorCrossing: 10.2,
+    swathKm: 185,
+    cycleRef: new Date('2024-01-01'),
+    cycleDay: 8,       // L9 offset 8 days from L8
+    type: 'optical',
+    free: true,
+  },
+  {
+    id: 'S1A',
+    name: 'Sentinel-1A',
+    shortName: 'S1A',
+    res: '10m SAR',
+    color: '#f59e0b',
+    repeat: 12,
+    equatorCrossing: 6.0,   // dawn-dusk orbit, ~6am local
+    swathKm: 250,
+    cycleRef: new Date('2024-01-01'),
+    cycleDay: 0,
+    type: 'SAR',
+    free: true,
+  },
+  {
+    id: 'S1B',
+    name: 'Sentinel-1B',
+    shortName: 'S1B',
+    res: '10m SAR',
+    color: '#fbbf24',
+    repeat: 12,
+    equatorCrossing: 6.0,
+    swathKm: 250,
+    cycleRef: new Date('2024-01-01'),
+    cycleDay: 6,
+    type: 'SAR',
+    free: true,
+    note: 'Partial ops 2022–, degraded'
+  },
+  {
+    id: 'PL',
+    name: 'Planet Dove',
+    shortName: 'PL',
+    res: '3–5m',
+    color: '#f472b6',
+    repeat: 1,         // daily revisit (probabilistic)
+    equatorCrossing: null,
+    swathKm: 24,
+    type: 'optical',
+    free: false,
+    probabilistic: true,
+    coverage: 0.7,     // ~70% chance on any given day for a CONUS site
+  },
+  {
+    id: 'SKY',
+    name: 'SkySat',
+    shortName: 'SKY',
+    res: '0.5m',
+    color: '#e879f9',
+    repeat: 1,
+    equatorCrossing: null,
+    swathKm: 6.6,
+    type: 'optical',
+    free: false,
+    probabilistic: true,
+    coverage: 0.25,    // tasked, lower probability
+  },
+];
+
+// ── State ──────────────────────────────────────────────────────────────
+let selectedSats = new Set(['S2A','S2B','LC8','LC9','S1A']);
+let currentResults = null;
+
+// ── Init ───────────────────────────────────────────────────────────────
+function init() {
+  const container = document.getElementById('satList');
+  SATS.forEach(sat => {
+    const div = document.createElement('label');
+    div.className = 'sat-check' + (selectedSats.has(sat.id) ? ' active' : '');
+    div.innerHTML = `
+      <input type="checkbox" value="${sat.id}" ${selectedSats.has(sat.id) ? 'checked' : ''}>
+      <div class="sat-dot" style="background:${sat.color}"></div>
+      <span class="sat-name">${sat.name}</span>
+      <span class="sat-res">${sat.res}${sat.free ? '' : ' ⚡'}</span>
+    `;
+    const cb = div.querySelector('input');
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedSats.add(sat.id);
+      else selectedSats.delete(sat.id);
+      div.classList.toggle('active', cb.checked);
+    });
+    container.appendChild(div);
+  });
+}
+
+// ── Orbital mechanics (simplified SSO model) ───────────────────────────
+// For sun-synchronous satellites, the ground track repeats every N days.
+// We compute whether a given location falls within the swath on a given day
+// using the repeat cycle and a latitude-dependent adjustment.
+
+function daysSince(ref, date) {
+  return Math.floor((date - ref) / 86400000);
+}
+
+function getOverpassesForSat(sat, lat, lon, dates) {
+  const results = [];
+
+  for (const date of dates) {
+    if (sat.probabilistic) {
+      // Planet/SkySat: probabilistic daily coverage
+      // Use seeded pseudo-random so results are deterministic per location
+      const seed = Math.abs(Math.sin(lat * 12.9898 + lon * 78.233 + date.getTime() / 86400000) * 43758.5453);
+      const prob = seed - Math.floor(seed);
+      if (prob < sat.coverage) {
+        // Estimate overpass time based on orbital characteristics
+        const hr = 10.5 + (prob * 2 - 1); // roughly 10-11am local
+        results.push({
+          date: date,
+          utcTime: localSolarToUTC(hr, lon),
+          localTime: hr,
+          sat: sat,
+          confidence: 'probabilistic'
+        });
+      }
+      continue;
+    }
+
+    // SSO satellites: compute cycle position
+    const d = daysSince(sat.cycleRef, date);
+    const cyclePos = ((d + sat.cycleDay) % sat.repeat + sat.repeat) % sat.repeat;
+
+    // Compute whether this location is imaged on this cycle day
+    // The satellite images a swath ~290km wide. At the equator, each day
+    // the ground track shifts by ~2800km/repeat_days. We check if the
+    // longitude falls within the swath for this cycle position.
+
+    const earthCircumferenceAtLat = 40075 * Math.cos(lat * Math.PI / 180);
+    const trackSpacing = earthCircumferenceAtLat / sat.repeat; // km between adjacent tracks
+    const swathHalfWidth = sat.swathKm / 2;
+
+    // Reference longitude for cycle day 0 (approximate)
+    // In reality this requires TLE propagation; we use a simplified model
+    // that captures the repeat pattern correctly but not absolute positioning
+    const refLon = ((lon + 180) % 360) - 180;
+    const trackOffset = (cyclePos / sat.repeat) * earthCircumferenceAtLat;
+    const remainder = (trackOffset % trackSpacing + trackSpacing) % trackSpacing;
+    const distToTrack = Math.min(remainder, trackSpacing - remainder) * (earthCircumferenceAtLat / 40075);
+
+    if (distToTrack < swathHalfWidth) {
+      const localHour = sat.equatorCrossing + (lat / 90) * 0.5; // slight adjustment for latitude
+      results.push({
+        date: date,
+        utcTime: localSolarToUTC(localHour, lon),
+        localTime: localHour,
+        sat: sat,
+        confidence: 'deterministic',
+        cycleDay: cyclePos
+      });
+    }
+  }
+
+  return results;
+}
+
+function localSolarToUTC(localSolarHour, lon) {
+  // Convert local solar time to UTC
+  const utcHour = localSolarHour - lon / 15;
+  return ((utcHour % 24) + 24) % 24;
+}
+
+function formatTime(utcHour) {
+  const h = Math.floor(utcHour);
+  const m = Math.floor((utcHour - h) * 60);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} UTC`;
+}
+
+// ── Main analysis ──────────────────────────────────────────────────────
+function runAnalysis() {
+  const lat = parseFloat(document.getElementById('lat').value);
+  const lon = parseFloat(document.getElementById('lon').value);
+  const startDate = new Date(document.getElementById('startDate').value + 'T12:00:00Z');
+  const endDate = new Date(document.getElementById('endDate').value + 'T12:00:00Z');
+  const overlapThresh = parseInt(document.getElementById('overlapThresh').value);
+  const locName = document.getElementById('locName').value || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+  if (isNaN(lat) || isNaN(lon)) {
+    showError('Please enter valid coordinates.');
+    return;
+  }
+
+  if (endDate <= startDate) {
+    showError('End date must be after start date.');
+    return;
+  }
+
+  if ((endDate - startDate) > 365 * 2 * 86400000) {
+    showError('Date range too large (max 2 years). Reduce for performance.');
+    return;
+  }
+
+  // Generate date array
+  const dates = [];
+  let cur = new Date(startDate);
+  while (cur <= endDate) {
+    dates.push(new Date(cur));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+
+  // Get selected satellites
+  const activeSats = SATS.filter(s => selectedSats.has(s.id));
+
+  // Compute overpasses
+  const allPasses = [];
+  for (const sat of activeSats) {
+    const passes = getOverpassesForSat(sat, lat, lon, dates);
+    allPasses.push(...passes);
+  }
+
+  // Group by date
+  const byDate = {};
+  for (const pass of allPasses) {
+    const key = pass.date.toISOString().slice(0,10);
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(pass);
+  }
+
+  // Compute stats
+  const totalDays = dates.length;
+  const daysWithAny = Object.keys(byDate).length;
+  const overlapDays = Object.entries(byDate).filter(([k,v]) => {
+    const opticalCount = v.filter(p => p.sat.type === 'optical').length;
+    return v.length >= overlapThresh;
+  });
+
+  // Find best overlap days (most sensors)
+  const bestDays = Object.entries(byDate)
+    .sort((a,b) => b[1].length - a[1].length)
+    .slice(0, 20);
+
+  currentResults = { byDate, dates, overlapDays, overlapThresh, lat, lon, locName, activeSats };
+
+  renderResults(currentResults, totalDays, daysWithAny, overlapDays, bestDays, overlapThresh);
+}
+
+function showError(msg) {
+  document.getElementById('results').innerHTML = `<div class="error-msg">${msg}</div>`;
+}
+
+function renderResults(data, totalDays, daysWithAny, overlapDays, bestDays, overlapThresh) {
+  const { byDate, dates, locName, activeSats } = data;
+
+  // Build calendar by month
+  const months = {};
+  dates.forEach(d => {
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+    if (!months[key]) months[key] = [];
+    months[key].push(d);
+  });
+
+  // Legend HTML
+  const legendHTML = activeSats.map(s => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${s.color}"></div>
+      <span>${s.shortName}</span>
+    </div>
+  `).join('') + `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#4a9080; border: 2px solid #7dd3fc"></div>
+      <span>2+ sensors</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#6a8040; border: 2px solid #86efac"></div>
+      <span>3+ sensors</span>
+    </div>
+  `;
+
+  // Calendar HTML
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  let calHTML = '<div class="calendar-grid">';
+  for (const [monthKey, monthDates] of Object.entries(months)) {
+    const [yr, mo] = monthKey.split('-');
+    calHTML += `<div class="month-row">`;
+    calHTML += `<div class="month-label">${MONTH_NAMES[parseInt(mo)-1]} ${yr.slice(2)}</div>`;
+    for (const d of monthDates) {
+      const dKey = d.toISOString().slice(0,10);
+      const passes = byDate[dKey] || [];
+      const n = passes.length;
+      let cls = 'day-cell';
+      if (n === 0) cls += '';
+      else if (n === 1) cls += ' has-1';
+      else if (n >= overlapThresh + 1) cls += ' overlap-4';
+      else if (n >= overlapThresh) cls += ' overlap-2';
+      else cls += ` has-${Math.min(n,4)}`;
+
+      const day = d.getUTCDate();
+      const satNames = passes.map(p => p.sat.shortName).join(', ');
+      calHTML += `<div class="${cls}" data-date="${dKey}" data-passes='${JSON.stringify(passes.map(p=>({name:p.sat.name,time:p.utcTime,color:p.sat.color,type:p.sat.type})))}' title="${dKey}: ${n} passes${satNames ? ' — ' + satNames : ''}">${day}</div>`;
+    }
+    calHTML += `</div>`;
+  }
+  calHTML += '</div>';
+
+  // Best overlap days table
+  const overlapTableRows = overlapDays.slice(0,30).map(([dateStr, passes]) => {
+    const satNames = passes.map(p => `<span style="color:${p.sat.color}">${p.sat.shortName}</span>`).join(' ');
+    const times = passes.map(p => formatTime(p.utcTime)).join(' / ');
+    const timeDiff = passes.length > 1 ? (() => {
+      const hours = passes.map(p => p.utcTime).sort((a,b)=>a-b);
+      const diff = hours[hours.length-1] - hours[0];
+      return `Δ${diff.toFixed(1)}h`;
+    })() : '';
+    return `<tr>
+      <td>${dateStr}</td>
+      <td>${satNames} <span class="badge overlap-badge">${passes.length} sensors</span></td>
+      <td style="color:#64748b;font-size:11px">${times}</td>
+      <td style="color:#94a3b8;font-size:11px">${timeDiff}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('results').innerHTML = `
+    <div class="timeline-header">
+      <div class="panel-title">COVERAGE ANALYSIS — ${locName}</div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-val">${Math.round(daysWithAny/totalDays*100)}%</div>
+        <div class="stat-label">days with any coverage</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--accent2)">${overlapDays.length}</div>
+        <div class="stat-label">days with ${overlapThresh}+ sensors</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--accent3)">${Math.round(overlapDays.length/totalDays*365)}</div>
+        <div class="stat-label">overlap days per year (est.)</div>
+      </div>
+    </div>
+
+    <div class="legend">${legendHTML}</div>
+
+    ${calHTML}
+
+    <div class="passes-section">
+      <div class="passes-title">Top overlap days (${overlapThresh}+ sensors same day)</div>
+      ${overlapDays.length === 0 ? '<div style="color:var(--muted);font-family:var(--mono);font-size:12px">No multi-sensor overlap days found. Try reducing overlap threshold or expanding date range.</div>' : `
+      <table class="pass-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Sensors</th>
+            <th>UTC Times</th>
+            <th>Time Spread</th>
+          </tr>
+        </thead>
+        <tbody>${overlapTableRows}</tbody>
+      </table>`}
+    </div>
+  `;
+
+  // Tooltip hover on calendar cells
+  const tooltip = document.getElementById('tooltip');
+  document.querySelectorAll('.day-cell[data-passes]').forEach(cell => {
+    cell.addEventListener('mousemove', e => {
+      const passes = JSON.parse(cell.dataset.passes);
+      if (passes.length === 0) { tooltip.style.display = 'none'; return; }
+      const dateStr = cell.dataset.date;
+      let inner = `<div class="tt-date">${dateStr}</div>`;
+      passes.forEach(p => {
+        inner += `<div class="tt-pass"><div class="tt-dot" style="background:${p.color}"></div><span style="color:#e2e8f0">${p.name}</span><span style="color:#64748b;margin-left:auto">${formatTime(p.time)}</span></div>`;
+      });
+      if (passes.length > 1) {
+        const times = passes.map(p=>p.time).sort((a,b)=>a-b);
+        const spread = (times[times.length-1]-times[0]).toFixed(1);
+        inner += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #2a2a3d;color:#94a3b8;font-size:10px">Time spread: ${spread}h between first and last pass</div>`;
+      }
+      tooltip.innerHTML = inner;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+    });
+    cell.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  });
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 body {
-    background-color: #1a1a1a;
-    color: #cccccc;
+    background-color: #000000;
+    color: #e8e8e8;
     font-family: sans-serif;
     line-height: 1.5;
     max-width: 800px;
@@ -13,12 +13,12 @@ h1, h2, h3 {
 }
 
 a {
-    color: #bb86fc;
+    color: #c0392b;
     text-decoration: none;
 }
 
 a:hover {
-    color: #cfa9ff;
+    color: #e74c3c;
     text-decoration: underline;
 }
 
