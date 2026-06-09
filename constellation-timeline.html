@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbit Watch — Constellation Coverage Timeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0A0E1A; --void-2:#0F1424; --panel:#121A30; --grid:#1E2A45;
+    --hair:#26344f; --ink:#E8EDF7; --ink-dim:#8A97B4; --ink-faint:#5b6885;
+    --sodium:#FFC766;  /* daily */
+    --amber:#F0922F;   /* weekly */
+    --ember:#B85A2E;   /* monthly */
+    --signal:#62A0C4;  /* yearly / tasking */
+    --now:#ff5c5c;
+    --label-w:240px;
+    --row-h:26px;
+    --disp:"Space Grotesk",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #16203a 0%, transparent 60%),
+      var(--void);
+    color:var(--ink); font-family:var(--disp);
+    -webkit-font-smoothing:antialiased; font-size:14px; line-height:1.4;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    padding:18px 26px 14px; border-bottom:1px solid var(--hair);
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 22px;
+    position:relative;
+  }
+  .brand{display:flex; align-items:baseline; gap:12px;}
+  .brand h1{
+    font-size:21px; font-weight:700; letter-spacing:-0.01em; margin:0;
+  }
+  .brand .tag{
+    font-family:var(--mono); font-size:10.5px; color:var(--sodium);
+    letter-spacing:0.18em; text-transform:uppercase; border:1px solid var(--ember);
+    padding:2px 7px; border-radius:2px; align-self:center;
+  }
+  .thesis{color:var(--ink-dim); font-size:13.5px; max-width:62ch;}
+  .stat-line{
+    margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--ink-dim);
+    display:flex; gap:18px; align-items:center;
+  }
+  .stat-line b{color:var(--sodium); font-weight:500;}
+
+  /* ---------- Layout ---------- */
+  .wrap{display:flex; min-height:calc(100vh - 70px);}
+  aside{
+    width:268px; flex:none; border-right:1px solid var(--hair);
+    padding:18px 18px 40px; overflow-y:auto; max-height:calc(100vh - 70px);
+    position:sticky; top:0;
+  }
+  main{flex:1; min-width:0; padding:14px 0 60px; overflow:hidden;}
+
+  /* ---------- Filter rail ---------- */
+  .filt-head{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:0.16em;
+    text-transform:uppercase; color:var(--ink-faint); margin:22px 0 9px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .filt-head:first-child{margin-top:4px;}
+  .search{
+    width:100%; background:var(--void-2); border:1px solid var(--hair);
+    color:var(--ink); font-family:var(--mono); font-size:13px;
+    padding:9px 11px; border-radius:4px; outline:none;
+  }
+  .search:focus{border-color:var(--amber);}
+  .search::placeholder{color:var(--ink-faint);}
+
+  .chips{display:flex; flex-wrap:wrap; gap:6px;}
+  .chip{
+    font-family:var(--mono); font-size:11.5px; cursor:pointer; user-select:none;
+    padding:5px 10px; border-radius:20px; border:1px solid var(--hair);
+    background:transparent; color:var(--ink-dim); transition:.15s;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .chip .dot{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.9;}
+  .chip[data-on="true"]{color:var(--ink); border-color:currentColor;}
+  .chip.cad-daily[data-on="true"]{color:var(--sodium); box-shadow:0 0 12px -4px var(--sodium);}
+  .chip.cad-weekly[data-on="true"]{color:var(--amber);}
+  .chip.cad-monthly[data-on="true"]{color:var(--ember);}
+  .chip.cad-yearly[data-on="true"]{color:var(--signal);}
+  .chip[data-on="false"]{opacity:.5;}
+  .chip:hover{border-color:var(--ink-dim);}
+  .chip:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+
+  .acc-group{margin-bottom:4px;}
+  .acc-master{
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    font-size:13px; font-weight:500; padding:5px 0; color:var(--ink);
+  }
+  .acc-master .caret{
+    font-family:var(--mono); color:var(--ink-faint); font-size:11px;
+    margin-left:auto; transition:.15s;
+  }
+  .acc-children{padding:2px 0 8px 4px; display:flex; flex-direction:column; gap:3px;}
+  .acc-children.collapsed{display:none;}
+  label.opt{
+    display:flex; align-items:center; gap:8px; cursor:pointer;
+    font-size:12.5px; color:var(--ink-dim); padding:2px 0;
+  }
+  label.opt:hover{color:var(--ink);}
+  input[type=checkbox]{
+    appearance:none; -webkit-appearance:none; width:14px; height:14px; flex:none;
+    border:1px solid var(--ink-faint); border-radius:3px; background:var(--void-2);
+    cursor:pointer; position:relative; transition:.12s;
+  }
+  input[type=checkbox]:checked{background:var(--amber); border-color:var(--amber);}
+  input[type=checkbox]:checked::after{
+    content:""; position:absolute; left:4px; top:1px; width:4px; height:8px;
+    border:solid var(--void); border-width:0 2px 2px 0; transform:rotate(45deg);
+  }
+  input[type=checkbox]:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .opt .cnt{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--ink-faint);}
+
+  .reset{
+    background:none; border:none; color:var(--ink-faint); cursor:pointer;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+    padding:0;
+  }
+  .reset:hover{color:var(--amber);}
+
+  .sort-row{display:flex; align-items:center; gap:8px; padding:0 26px 8px;}
+  .sort-row label{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-faint);}
+  select{
+    background:var(--void-2); color:var(--ink); border:1px solid var(--hair);
+    font-family:var(--mono); font-size:12px; padding:5px 8px; border-radius:4px; cursor:pointer;
+  }
+  select:focus{outline:2px solid var(--amber); outline-offset:1px;}
+
+  /* ---------- Timeline ---------- */
+  .tl-scroll{overflow-x:auto; overflow-y:visible;}
+  .tl{position:relative; min-width:760px; padding:0 26px;}
+  .axis{
+    position:sticky; top:0; z-index:5; height:30px; margin-left:var(--label-w);
+    background:linear-gradient(var(--void) 70%, transparent);
+  }
+  .axis .yr{
+    position:absolute; top:6px; transform:translateX(-50%);
+    font-family:var(--mono); font-size:11px; color:var(--ink-dim);
+  }
+  .grid-lines{position:absolute; inset:30px 0 0 var(--label-w); pointer-events:none; z-index:0;}
+  .gl{position:absolute; top:0; bottom:0; width:1px; background:var(--grid);}
+  .gl.minor{background:#16203a;}
+  .nowline{position:absolute; top:0; bottom:0; width:1px; background:var(--now);
+    box-shadow:0 0 8px 0 var(--now); z-index:2;}
+  .nowline span{position:absolute; top:-22px; left:5px; font-family:var(--mono);
+    font-size:10px; color:var(--now); letter-spacing:.1em;}
+
+  .rows{position:relative; z-index:3;}
+  .grp-label{
+    font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-faint); margin:16px 0 5px; padding-top:6px; border-top:1px solid var(--hair);
+  }
+  .row{display:flex; align-items:center; height:var(--row-h);}
+  .row .lab{
+    width:var(--label-w); flex:none; padding-right:14px; text-align:right;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12.5px;
+  }
+  .row .lab .op{font-family:var(--mono); font-size:9.5px; color:var(--ink-faint);
+    margin-left:6px;}
+  .plot{position:relative; flex:1; height:100%;}
+  .bar{
+    position:absolute; top:50%; transform:translateY(-50%); height:11px;
+    border-radius:3px; cursor:pointer; border:none; padding:0;
+    transition:filter .15s, height .15s; outline:none;
+  }
+  .bar:focus-visible{outline:2px solid #fff; outline-offset:2px;}
+  .bar.daily  {background:linear-gradient(90deg,#5a4220,var(--sodium)); box-shadow:0 0 14px -2px var(--sodium);}
+  .bar.weekly {background:linear-gradient(90deg,#4a3018,var(--amber)); box-shadow:0 0 10px -3px var(--amber);}
+  .bar.monthly{background:linear-gradient(90deg,#3a2418,var(--ember)); box-shadow:0 0 7px -3px var(--ember);}
+  .bar.yearly {
+    background:repeating-linear-gradient(90deg,var(--signal) 0 5px, transparent 5px 9px);
+    height:8px; opacity:.85; border:1px solid var(--signal); box-shadow:none;
+  }
+  .bar.present::after{
+    content:""; position:absolute; right:-1px; top:0; bottom:0; width:9px;
+    background:linear-gradient(90deg,transparent,var(--now)); border-radius:0 3px 3px 0;
+  }
+  .bar:hover, .bar:focus-visible{filter:brightness(1.4); height:14px; z-index:6;}
+  .row.dim .bar{filter:saturate(.2) brightness(.5); }
+
+  .empty{padding:60px 26px; color:var(--ink-dim); font-family:var(--mono); font-size:13px;}
+
+  /* ---------- Legend ---------- */
+  .legend{
+    margin:24px 26px 0; padding-top:16px; border-top:1px solid var(--hair);
+    display:flex; flex-wrap:wrap; gap:20px 30px; font-size:12px; color:var(--ink-dim);
+  }
+  .legend .li{display:flex; align-items:center; gap:9px;}
+  .legend .swatch{width:30px;height:10px;border-radius:3px;}
+  .legend .note{font-family:var(--mono); font-size:11px; color:var(--ink-faint); max-width:48ch;}
+
+  /* ---------- Tooltip ---------- */
+  #tip{
+    position:fixed; z-index:50; pointer-events:none; opacity:0; transition:opacity .1s;
+    background:var(--panel); border:1px solid var(--hair); border-radius:6px;
+    padding:11px 13px; max-width:280px; box-shadow:0 10px 30px -8px #000;
+  }
+  #tip h3{margin:0 0 3px; font-size:14px; font-weight:700;}
+  #tip .tmeta{font-family:var(--mono); font-size:11px; color:var(--ink-dim);
+    display:grid; grid-template-columns:auto 1fr; gap:1px 10px; margin:7px 0;}
+  #tip .tmeta b{color:var(--ink); font-weight:500;}
+  #tip .tnote{font-size:11.5px; color:var(--ink-dim); border-top:1px solid var(--hair);
+    padding-top:6px; margin-top:6px; line-height:1.35;}
+  #tip .pill{display:inline-block; font-family:var(--mono); font-size:10px; padding:1px 6px;
+    border-radius:3px; letter-spacing:.05em; text-transform:uppercase;}
+
+  footer{padding:20px 26px; color:var(--ink-faint); font-family:var(--mono);
+    font-size:10.5px; line-height:1.6; border-top:1px solid var(--hair); margin-top:24px;}
+
+  .mobile-toggle{display:none;}
+
+  @media (max-width:820px){
+    .wrap{flex-direction:column;}
+    aside{width:100%; position:static; max-height:none; border-right:none;
+      border-bottom:1px solid var(--hair);}
+    .mobile-toggle{display:inline-flex; margin-left:auto;}
+    aside[data-collapsed="true"]{display:none;}
+    :root{--label-w:150px;}
+    .stat-line{width:100%; margin-left:0;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .bar{transition:none;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Orbit Watch</h1>
+  </div>
+  <div class="stat-line">
+    <span><b id="stat-shown">0</b> of <span id="stat-total">0</span> shown</span>
+    <span>daily-capable&nbsp;<b id="stat-daily">0</b></span>
+    <button class="reset mobile-toggle" id="mtoggle">Filters</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside id="rail">
+    <div class="filt-head">Search</div>
+    <input class="search" id="search" type="text" placeholder="name or operator…" autocomplete="off">
+
+    <div class="filt-head">Coverage cadence <button class="reset" data-reset="cadence">all</button></div>
+    <div class="chips" id="cadence-chips"></div>
+
+    <div class="filt-head">Modality <button class="reset" data-reset="modality">all</button></div>
+    <div class="chips" id="modality-chips"></div>
+
+    <div class="filt-head">Access &amp; operator <button class="reset" data-reset="access">all</button></div>
+    <div id="access-groups"></div>
+  </aside>
+
+  <main>
+    <div class="sort-row">
+      <label for="sort">Order</label>
+      <select id="sort">
+        <option value="start">Launch year</option>
+        <option value="name">Name (A–Z)</option>
+        <option value="cadence">Cadence (daily→yearly)</option>
+        <option value="access">Group by access</option>
+      </select>
+    </div>
+
+    <div class="tl-scroll">
+      <div class="tl">
+        <div class="axis" id="axis"></div>
+        <div class="grid-lines" id="gridlines"></div>
+        <div class="rows" id="rows"></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="li"><span class="swatch" style="background:linear-gradient(90deg,#5a4220,#FFC766);box-shadow:0 0 12px -2px #FFC766"></span> Daily — images a point ≥ ~once/day</div>
+      <div class="li"><span class="swatch" style="background:linear-gradient(90deg,#4a3018,#F0922F)"></span> Weekly — every few days to ~2 weeks</div>
+      <div class="li"><span class="swatch" style="background:linear-gradient(90deg,#3a2418,#B85A2E)"></span> Monthly — sparse / periodic repeat</div>
+      <div class="li"><span class="swatch" style="background:repeating-linear-gradient(90deg,#62A0C4 0 5px,transparent 5px 9px);border:1px solid #62A0C4"></span> Yearly — on-demand tasking only</div>
+      <div class="li note">Tasking constellations (dashed) can image daily, but a given point is only covered when you task it — so coverage of any fixed location is intermittent, not steady. The red edge marks missions still operating.</div>
+    </div>
+
+  </main>
+</div>
+
+<div id="tip" role="tooltip"></div>
+
+<script>
+"use strict";
+
+/* ===== Data: representative, mid-2026. Verify individual specs before citing. ===== */
+const AXIS_MIN = 1984, AXIS_MAX = 2027, NOW = 2026.4;
+
+// cadence: daily|weekly|monthly|yearly  • access: open|commercial|national
+// group = filter key (operator brand)  • modality: optical|sar|hyper|lidar|thermal|climate
+const DATA = [
+  // --- Open data ---
+  {n:"Landsat 5 (TM)", op:"USGS–NASA", access:"open", group:"Open data", mod:"optical", cad:"weekly", rev:"16 d", res:"30 m", s:1984, e:2013, note:"Longest-lived Landsat; anchors the 30 m continuous record."},
+  {n:"Landsat 7 (ETM+)", op:"USGS–NASA", access:"open", group:"Open data", mod:"optical", cad:"weekly", rev:"16 d", res:"30 m", s:1999, e:2022, note:"Scan-line corrector failed 2003 (striped gaps)."},
+  {n:"Landsat 8 (OLI/TIRS)", op:"USGS–NASA", access:"open", group:"Open data", mod:"optical", cad:"weekly", rev:"16 d (8 d w/ L9)", res:"30 m / 100 m TIR", s:2013, e:null, note:"Backbone optical+thermal record."},
+  {n:"Landsat 9", op:"USGS–NASA", access:"open", group:"Open data", mod:"optical", cad:"weekly", rev:"16 d", res:"30 m", s:2021, e:null, note:"Phased 8 days from Landsat 8."},
+  {n:"Sentinel-2 (A/B/C)", op:"ESA Copernicus", access:"open", group:"Open data", mod:"optical", cad:"weekly", rev:"~5 d (1.4 d in HLS)", res:"10–60 m", s:2015, e:null, note:"2C active since 2024; substrate for most impervious products."},
+  {n:"Sentinel-1 (C/D)", op:"ESA Copernicus", access:"open", group:"Open data", mod:"sar", cad:"weekly", rev:"6–12 d", res:"5–40 m", s:2014, e:null, note:"C launched 2024, D Nov 2025; A retiring mid-2026."},
+  {n:"Sentinel-3 (A/B)", op:"ESA Copernicus", access:"open", group:"Open data", mod:"optical", cad:"daily", rev:"1–2 d", res:"300 m", s:2016, e:null, note:"Ocean+land color and surface temperature."},
+  {n:"Sentinel-5P (TROPOMI)", op:"ESA Copernicus", access:"open", group:"Open data", mod:"climate", cad:"daily", rev:"daily", res:"3.5×5.5 km", s:2017, e:null, note:"Trace gases: NO₂, CH₄, O₃, SO₂."},
+  {n:"Sentinel-6", op:"ESA/EUMETSAT/NASA", access:"open", group:"Open data", mod:"climate", cad:"weekly", rev:"10 d", res:"track", s:2020, e:null, note:"Reference sea-surface-height altimetry."},
+  {n:"MODIS (Terra/Aqua)", op:"NASA", access:"open", group:"Open data", mod:"optical", cad:"daily", rev:"~daily", res:"250 m–1 km", s:1999, e:null, note:"Aging; Terra/Aqua retiring mid-2020s."},
+  {n:"VIIRS (NPP/N20/N21)", op:"NOAA–NASA", access:"open", group:"Open data", mod:"optical", cad:"daily", rev:"~daily", res:"375–750 m", s:2011, e:null, note:"Day/Night Band is the modern nightlights successor."},
+  {n:"DMSP-OLS (nightlights)", op:"US DoD / NOAA", access:"open", group:"Open data", mod:"thermal", cad:"daily", rev:"nightly comp.", res:"~1 km", s:1992, e:2013, note:"The Henderson–Storeygard–Weil lineage. 6-bit, saturating."},
+  {n:"NISAR", op:"NASA–ISRO", access:"open", group:"Open data", mod:"sar", cad:"weekly", rev:"12 d", res:"3–10 m", s:2025, e:null, note:"First dual-band L+S SAR; deformation & biomass. Launched Jul 2025."},
+  {n:"GEDI", op:"NASA (ISS)", access:"open", group:"Open data", mod:"lidar", cad:"monthly", rev:"sampled", res:"25 m footprints", s:2018, e:null, note:"Spaceborne structure/height lidar — sampling, not wall-to-wall."},
+  {n:"ICESat-2 (ATLAS)", op:"NASA", access:"open", group:"Open data", mod:"lidar", cad:"monthly", rev:"91 d", res:"17 m footprints", s:2018, e:null, note:"Elevation, ice, canopy top."},
+  {n:"SMAP", op:"NASA", access:"open", group:"Open data", mod:"climate", cad:"daily", rev:"2–3 d", res:"9–36 km", s:2015, e:null, note:"Soil moisture (microwave radiometer)."},
+  {n:"GPM Core", op:"NASA–JAXA", access:"open", group:"Open data", mod:"climate", cad:"daily", rev:"~daily", res:"~5 km", s:2014, e:null, note:"Dual-frequency precipitation radar."},
+  {n:"SWOT", op:"NASA–CNES", access:"open", group:"Open data", mod:"climate", cad:"weekly", rev:"21 d", res:"wide swath", s:2022, e:null, note:"Surface water & ocean topography."},
+  {n:"PACE", op:"NASA", access:"open", group:"Open data", mod:"optical", cad:"daily", rev:"1–2 d", res:"1 km", s:2024, e:null, note:"Ocean color, aerosols, clouds."},
+  {n:"EMIT", op:"NASA (ISS)", access:"open", group:"Open data", mod:"hyper", cad:"monthly", rev:"sampled", res:"60 m", s:2022, e:null, note:"VSWIR hyperspectral; surface mineralogy."},
+  {n:"PRISMA", op:"ASI (Italy)", access:"open", group:"Open data", mod:"hyper", cad:"yearly", rev:"tasking", res:"30 m", s:2019, e:null, note:"Hyperspectral, registration required."},
+  {n:"EnMAP", op:"DLR (Germany)", access:"open", group:"Open data", mod:"hyper", cad:"yearly", rev:"tasking", res:"30 m", s:2022, e:null, note:"VNIR–SWIR hyperspectral."},
+  {n:"GOES-R (16/18/19)", op:"NOAA", access:"open", group:"Open data", mod:"optical", cad:"daily", rev:"continuous", res:"0.5–2 km", s:2016, e:null, note:"Geostationary; ABI imager + lightning mapper."},
+  {n:"Himawari-8/9", op:"JMA (Japan)", access:"open", group:"Open data", mod:"optical", cad:"daily", rev:"continuous", res:"0.5–2 km", s:2014, e:null, note:"Geostationary, Asia-Pacific."},
+  {n:"Meteosat / MTG", op:"EUMETSAT", access:"open", group:"Open data", mod:"optical", cad:"daily", rev:"continuous", res:"0.5–3 km", s:2002, e:null, note:"Geostationary; MTG new generation."},
+  {n:"GRACE-FO", op:"NASA–GFZ", access:"open", group:"Open data", mod:"climate", cad:"monthly", rev:"monthly", res:"~300 km", s:2018, e:null, note:"Gravity → groundwater & ice mass (not imagery)."},
+  {n:"COSMIC-2", op:"NOAA–Taiwan", access:"open", group:"Open data", mod:"climate", cad:"daily", rev:"daily", res:"profiles", s:2019, e:null, note:"GNSS radio occultation atmospheric profiles."},
+  {n:"ECOSTRESS", op:"NASA (ISS)", access:"open", group:"Open data", mod:"thermal", cad:"monthly", rev:"sampled", res:"70 m", s:2018, e:null, note:"Surface temperature & evapotranspiration."},
+
+  // --- Planet ---
+  {n:"PlanetScope / SuperDove", op:"Planet", access:"commercial", group:"Planet", mod:"optical", cad:"daily", rev:"daily global", res:"~3 m, 8-band", s:2014, e:null, note:"~200-sat fleet; only operator with daily whole-Earth coverage."},
+  {n:"RapidEye", op:"Planet", access:"commercial", group:"Planet", mod:"optical", cad:"daily", rev:"daily tasking", res:"5 m", s:2008, e:2020, note:"Legacy 5-sat constellation."},
+  {n:"SkySat", op:"Planet", access:"commercial", group:"Planet", mod:"optical", cad:"daily", rev:"sub-daily tasking", res:"~50 cm", s:2013, e:null, note:"~21 agile high-res sats; video capable."},
+  {n:"Pelican (Gen-1)", op:"Planet", access:"commercial", group:"Planet", mod:"optical", cad:"daily", rev:"rapid tasking", res:"~50 cm", s:2025, e:null, note:"Next-gen VHR; Gen-2 from 2026."},
+  {n:"Tanager", op:"Planet / Carbon Mapper", access:"commercial", group:"Planet", mod:"hyper", cad:"yearly", rev:"tasking", res:"30 m, 400+ bands", s:2024, e:null, note:"VSWIR hyperspectral; methane/CO₂. Methane products open."},
+
+  // --- Maxar / Vantor ---
+  {n:"WorldView Legion", op:"Maxar (Vantor)", access:"commercial", group:"Maxar / Vantor", mod:"optical", cad:"daily", rev:"up to 15×/day", res:"30 cm, 8-band", s:2024, e:null, note:"Next-gen VHR constellation."},
+  {n:"WorldView-1/2/3", op:"Maxar (Vantor)", access:"commercial", group:"Maxar / Vantor", mod:"optical", cad:"yearly", rev:"tasking", res:"31–46 cm", s:2007, e:null, note:"Legacy VHR workhorses."},
+  {n:"GeoEye-1", op:"Maxar (Vantor)", access:"commercial", group:"Maxar / Vantor", mod:"optical", cad:"yearly", rev:"tasking", res:"41 cm", s:2008, e:null, note:"High-accuracy VHR."},
+
+  // --- Airbus ---
+  {n:"Pléiades Neo", op:"Airbus", access:"commercial", group:"Airbus", mod:"optical", cad:"daily", rev:"daily tasking", res:"30 cm", s:2021, e:null, note:"Airbus VHR workhorse (4 sats; 2 lost on Vega-C)."},
+  {n:"Pléiades 1A/1B", op:"Airbus", access:"commercial", group:"Airbus", mod:"optical", cad:"daily", rev:"daily tasking", res:"50 cm", s:2011, e:null, note:"Twin VHR."},
+  {n:"SPOT-6/7", op:"Airbus", access:"commercial", group:"Airbus", mod:"optical", cad:"daily", rev:"daily tasking", res:"1.5 m", s:2012, e:null, note:"Wide-swath mid-res."},
+  {n:"TerraSAR-X / TanDEM-X", op:"Airbus / DLR", access:"commercial", group:"Airbus", mod:"sar", cad:"weekly", rev:"11 d", res:"1–3 m", s:2007, e:null, note:"Tandem pair → global DEM."},
+
+  // --- BlackSky ---
+  {n:"BlackSky Gen-2", op:"BlackSky", access:"commercial", group:"BlackSky", mod:"optical", cad:"daily", rev:"sub-daily (AOI)", res:"1 m", s:2018, e:null, note:"AI-analytics-first monitoring."},
+  {n:"BlackSky Gen-3", op:"BlackSky", access:"commercial", group:"BlackSky", mod:"optical", cad:"daily", rev:"sub-hourly (AOI)", res:"35 cm", s:2025, e:null, note:"Targeting 8–9 on orbit by end 2026."},
+
+  // --- SAR commercial ---
+  {n:"ICEYE", op:"ICEYE", access:"commercial", group:"ICEYE", mod:"sar", cad:"daily", rev:"sub-hourly (fleet)", res:"25 cm–1 m", s:2018, e:null, note:"~60+ sats; largest commercial SAR fleet."},
+  {n:"Capella Space", op:"Capella", access:"commercial", group:"Capella", mod:"sar", cad:"daily", rev:"hourly (fleet)", res:"~50 cm", s:2020, e:null, note:"Acadia generation; US-defense positioned."},
+  {n:"Umbra", op:"Umbra", access:"commercial", group:"Umbra", mod:"sar", cad:"daily", rev:"tasking", res:"~25 cm", s:2021, e:null, note:"Highest commercial SAR resolution."},
+  {n:"Synspective (StriX)", op:"Synspective", access:"commercial", group:"Synspective", mod:"sar", cad:"weekly", rev:"growing", res:"~1 m", s:2020, e:null, note:"Asia-Pacific focus."},
+
+  // --- Other commercial ---
+  {n:"Satellogic", op:"Satellogic", access:"commercial", group:"Satellogic", mod:"optical", cad:"daily", rev:"daily tasking", res:"70 cm–1 m", s:2020, e:null, note:"Low-cost high-frequency MS."},
+  {n:"Pixxel (Firefly)", op:"Pixxel", access:"commercial", group:"Pixxel", mod:"hyper", cad:"weekly", rev:"growing", res:"~5 m", s:2022, e:null, note:"Highest-res commercial hyperspectral."},
+  {n:"Wyvern", op:"Wyvern", access:"commercial", group:"Wyvern", mod:"hyper", cad:"yearly", rev:"tasking", res:"~5 m", s:2023, e:null, note:"First commercial hyperspectral (2023)."},
+  {n:"GHGSat", op:"GHGSat", access:"commercial", group:"GHGSat", mod:"climate", cad:"weekly", rev:"tasking", res:"25–50 m site", s:2016, e:null, note:"Facility-scale methane point sources."},
+
+  // --- National / other ---
+  {n:"COSMO-SkyMed (1st/2nd)", op:"ASI / e-GEOS", access:"national", group:"National / other", mod:"sar", cad:"daily", rev:"4-sat constellation", res:"1 m", s:2007, e:null, note:"X-band; sold commercially via e-GEOS."},
+  {n:"ALOS-2 / ALOS-4", op:"JAXA (Japan)", access:"national", group:"National / other", mod:"sar", cad:"weekly", rev:"14 d", res:"1–10 m", s:2014, e:null, note:"L-band penetration; forest/biomass."},
+  {n:"RADARSAT-2 / RCM", op:"MDA / CSA (Canada)", access:"national", group:"National / other", mod:"sar", cad:"daily", rev:"RCM 3-sat", res:"1–100 m", s:2007, e:null, note:"C-band; maritime & deformation."},
+  {n:"SAOCOM-1A/1B", op:"CONAE (Argentina)", access:"national", group:"National / other", mod:"sar", cad:"weekly", rev:"~16 d", res:"~10 m", s:2018, e:null, note:"L-band; soil moisture."},
+  {n:"Gaofen series", op:"CNSA (China)", access:"national", group:"National / other", mod:"optical", cad:"daily", rev:"varies", res:"sub-m–km", s:2013, e:null, note:"Large multi-mission civil EO program."},
+  {n:"CartoSat series", op:"ISRO (India)", access:"national", group:"National / other", mod:"optical", cad:"yearly", rev:"tasking", res:"sub-m–2.5 m", s:2005, e:null, note:"Cartographic VHR."},
+  {n:"KOMPSAT series", op:"KARI (Korea)", access:"national", group:"National / other", mod:"optical", cad:"yearly", rev:"tasking", res:"30 cm–2.5 m", s:2006, e:null, note:"Optical + SAR (KOMPSAT-5)."},
+];
+
+const CAD = [
+  {key:"daily",   label:"Daily",   cls:"cad-daily"},
+  {key:"weekly",  label:"Weekly",  cls:"cad-weekly"},
+  {key:"monthly", label:"Monthly", cls:"cad-monthly"},
+  {key:"yearly",  label:"Yearly",  cls:"cad-yearly"},
+];
+const CAD_ORDER = {daily:0, weekly:1, monthly:2, yearly:3};
+const MODS = [
+  {key:"optical", label:"Optical"},
+  {key:"sar", label:"SAR"},
+  {key:"hyper", label:"Hyperspectral"},
+  {key:"lidar", label:"Lidar"},
+  {key:"thermal", label:"Thermal / Night"},
+  {key:"climate", label:"Atmos / Climate"},
+];
+const ACCESS_TIERS = [
+  {key:"open", label:"Open data"},
+  {key:"commercial", label:"Commercial"},
+  {key:"national", label:"National / other"},
+];
+
+/* ===== State ===== */
+const state = {
+  search:"",
+  cadence:new Set(CAD.map(c=>c.key)),
+  modality:new Set(MODS.map(m=>m.key)),
+  groups:new Set(DATA.map(d=>d.group)),
+  sort:"start",
+};
+
+/* ===== Build filter UI ===== */
+const $ = s=>document.querySelector(s);
+
+// cadence chips
+const cadWrap = $("#cadence-chips");
+CAD.forEach(c=>{
+  const b=document.createElement("button");
+  b.className="chip "+c.cls; b.dataset.on="true"; b.dataset.key=c.key;
+  b.innerHTML=`<span class="dot"></span>${c.label}`;
+  b.addEventListener("click",()=>{toggleSet(state.cadence,c.key); b.dataset.on=state.cadence.has(c.key); render();});
+  cadWrap.appendChild(b);
+});
+// modality chips
+const modWrap = $("#modality-chips");
+MODS.forEach(m=>{
+  const b=document.createElement("button");
+  b.className="chip"; b.dataset.on="true"; b.dataset.key=m.key;
+  b.textContent=m.label;
+  b.addEventListener("click",()=>{toggleSet(state.modality,m.key); b.dataset.on=state.modality.has(m.key); render();});
+  modWrap.appendChild(b);
+});
+// access groups (provider checkboxes nested under tier)
+const accWrap = $("#access-groups");
+ACCESS_TIERS.forEach(tier=>{
+  const providers=[...new Set(DATA.filter(d=>d.access===tier.key).map(d=>d.group))];
+  const block=document.createElement("div"); block.className="acc-group";
+  const master=document.createElement("div"); master.className="acc-master";
+  const mcb=document.createElement("input"); mcb.type="checkbox"; mcb.checked=true;
+  const mlabel=document.createElement("span"); mlabel.textContent=tier.label;
+  const caret=document.createElement("span"); caret.className="caret"; caret.textContent="▾";
+  master.append(mcb,mlabel,caret);
+  const kids=document.createElement("div"); kids.className="acc-children";
+
+  providers.forEach(p=>{
+    const cnt=DATA.filter(d=>d.group===p).length;
+    const lab=document.createElement("label"); lab.className="opt";
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=true; cb.dataset.group=p;
+    const txt=document.createElement("span"); txt.textContent=p;
+    const num=document.createElement("span"); num.className="cnt"; num.textContent=cnt;
+    lab.append(cb,txt,num);
+    cb.addEventListener("change",()=>{
+      cb.checked?state.groups.add(p):state.groups.delete(p);
+      syncMaster(); render();
+    });
+    kids.appendChild(lab);
+  });
+
+  mcb.addEventListener("change",()=>{
+    providers.forEach(p=>{
+      cb_set(p,mcb.checked);
+      mcb.checked?state.groups.add(p):state.groups.delete(p);
+    });
+    render();
+  });
+  caret.addEventListener("click",()=>{
+    kids.classList.toggle("collapsed");
+    caret.textContent=kids.classList.contains("collapsed")?"▸":"▾";
+  });
+
+  block._mcb=mcb; block._providers=providers;
+  block.append(master,kids); accWrap.appendChild(block);
+});
+
+function cb_set(group,val){
+  const el=accWrap.querySelector(`input[data-group="${CSS.escape(group)}"]`);
+  if(el) el.checked=val;
+}
+function syncMaster(){
+  accWrap.querySelectorAll(".acc-group").forEach(block=>{
+    const all=block._providers.every(p=>state.groups.has(p));
+    block._mcb.checked=all;
+    block._mcb.indeterminate = !all && block._providers.some(p=>state.groups.has(p));
+  });
+}
+function toggleSet(set,key){ set.has(key)?set.delete(key):set.add(key); }
+
+// search + sort + resets + mobile
+$("#search").addEventListener("input",e=>{state.search=e.target.value.toLowerCase().trim(); render();});
+$("#sort").addEventListener("change",e=>{state.sort=e.target.value; render();});
+document.querySelectorAll("[data-reset]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const kind=btn.dataset.reset;
+    if(kind==="cadence"){state.cadence=new Set(CAD.map(c=>c.key)); cadWrap.querySelectorAll(".chip").forEach(c=>c.dataset.on="true");}
+    if(kind==="modality"){state.modality=new Set(MODS.map(m=>m.key)); modWrap.querySelectorAll(".chip").forEach(c=>c.dataset.on="true");}
+    if(kind==="access"){state.groups=new Set(DATA.map(d=>d.group));
+      accWrap.querySelectorAll("input[type=checkbox]").forEach(c=>{c.checked=true;c.indeterminate=false;});}
+    render();
+  });
+});
+$("#mtoggle").addEventListener("click",()=>{
+  const r=$("#rail"); const c=r.dataset.collapsed==="true";
+  r.dataset.collapsed=String(!c);
+});
+
+/* ===== Axis & gridlines ===== */
+function xpct(year){ return (year-AXIS_MIN)/(AXIS_MAX-AXIS_MIN)*100; }
+(function buildAxis(){
+  const axis=$("#axis"), grid=$("#gridlines");
+  for(let y=1985; y<=AXIS_MAX; y+=5){
+    const minor = (y%10!==0);
+    const gl=document.createElement("div");
+    gl.className="gl"+(minor?" minor":""); gl.style.left=xpct(y)+"%";
+    grid.appendChild(gl);
+    if(!minor){
+      const lab=document.createElement("div"); lab.className="yr";
+      lab.style.left=xpct(y)+"%"; lab.textContent=y;
+      axis.appendChild(lab);
+    }
+  }
+  const nl=document.createElement("div"); nl.className="nowline"; nl.style.left=xpct(NOW)+"%";
+  const tag=document.createElement("span"); tag.textContent="NOW"; nl.appendChild(tag);
+  grid.appendChild(nl);
+})();
+
+/* ===== Render rows ===== */
+const rowsEl=$("#rows");
+function passFilter(d){
+  if(!state.cadence.has(d.cad)) return false;
+  if(!state.modality.has(d.mod)) return false;
+  if(!state.groups.has(d.group)) return false;
+  if(state.search){
+    const hay=(d.n+" "+d.op).toLowerCase();
+    if(!hay.includes(state.search)) return false;
+  }
+  return true;
+}
+function sortList(list){
+  const arr=[...list];
+  if(state.sort==="name") arr.sort((a,b)=>a.n.localeCompare(b.n));
+  else if(state.sort==="cadence") arr.sort((a,b)=>CAD_ORDER[a.cad]-CAD_ORDER[b.cad] || a.s-b.s);
+  else if(state.sort==="access") arr.sort((a,b)=>{
+    const ao={open:0,commercial:1,national:2};
+    return ao[a.access]-ao[b.access] || a.group.localeCompare(b.group) || a.s-b.s;
+  });
+  else arr.sort((a,b)=>a.s-b.s);
+  return arr;
+}
+
+function render(){
+  syncMaster();
+  const visible=DATA.filter(passFilter);
+  const ordered=sortList(visible);
+  rowsEl.innerHTML="";
+
+  let lastGroupKey=null;
+  ordered.forEach((d,i)=>{
+    if(state.sort==="access"){
+      const gk=ACCESS_TIERS.find(t=>t.key===d.access).label;
+      if(gk!==lastGroupKey){
+        const gl=document.createElement("div"); gl.className="grp-label"; gl.textContent=gk;
+        rowsEl.appendChild(gl); lastGroupKey=gk;
+      }
+    }
+    const row=document.createElement("div"); row.className="row";
+    const lab=document.createElement("div"); lab.className="lab";
+    lab.innerHTML=`${escapeHtml(d.n)}<span class="op">${escapeHtml(d.op)}</span>`;
+    const plot=document.createElement("div"); plot.className="plot";
+
+    const end = d.e===null?NOW:d.e;
+    const left=xpct(d.s), width=Math.max(xpct(end)-left, 0.6);
+    const bar=document.createElement("button");
+    bar.className="bar "+d.cad+(d.e===null?" present":"");
+    bar.style.left=left+"%"; bar.style.width=width+"%";
+    bar.setAttribute("aria-label",
+      `${d.n}, ${d.op}. ${cap(d.cad)} cadence, ${d.rev}. Operational ${d.s}–${d.e===null?"present":d.e}.`);
+    bar.addEventListener("mouseenter",e=>showTip(d,e));
+    bar.addEventListener("mousemove",moveTip);
+    bar.addEventListener("mouseleave",hideTip);
+    bar.addEventListener("focus",e=>showTipAt(d,bar));
+    bar.addEventListener("blur",hideTip);
+
+    if(!prefersReduced()){
+      bar.style.width="0%"; bar.style.transition="none";
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        bar.style.transition="width .5s cubic-bezier(.2,.7,.2,1) "+(i*12)+"ms, filter .15s, height .15s";
+        bar.style.width=width+"%";
+      }));
+    }
+
+    plot.appendChild(bar); row.append(lab,plot); rowsEl.appendChild(row);
+  });
+
+  if(ordered.length===0){
+    const e=document.createElement("div"); e.className="empty";
+    e.textContent="No constellations match these filters. Widen the cadence, modality, or operator selection.";
+    rowsEl.appendChild(e);
+  }
+
+  $("#stat-shown").textContent=visible.length;
+  $("#stat-daily").textContent=visible.filter(d=>d.cad==="daily").length;
+}
+
+/* ===== Tooltip ===== */
+const tip=$("#tip");
+const tierColor={open:"var(--sodium)",commercial:"var(--amber)",national:"var(--signal)"};
+function tipHtml(d){
+  const accLabel={open:"Open data",commercial:"Commercial",national:"National"}[d.access];
+  return `<h3>${escapeHtml(d.n)}</h3>
+    <span class="pill" style="background:${tierColor[d.access]}22;color:${tierColor[d.access]}">${accLabel}</span>
+    <div class="tmeta">
+      <span>Operator</span><b>${escapeHtml(d.op)}</b>
+      <span>Modality</span><b>${MODS.find(m=>m.key===d.mod).label}</b>
+      <span>Cadence</span><b>${cap(d.cad)} · ${escapeHtml(d.rev)}</b>
+      <span>Resolution</span><b>${escapeHtml(d.res)}</b>
+      <span>Operational</span><b>${d.s} – ${d.e===null?"present":d.e}</b>
+    </div>
+    <div class="tnote">${escapeHtml(d.note)}</div>`;
+}
+function showTip(d,e){ tip.innerHTML=tipHtml(d); tip.style.opacity="1"; moveTip(e); }
+function moveTip(e){
+  const pad=14, w=tip.offsetWidth, h=tip.offsetHeight;
+  let x=e.clientX+pad, y=e.clientY+pad;
+  if(x+w>innerWidth) x=e.clientX-w-pad;
+  if(y+h>innerHeight) y=e.clientY-h-pad;
+  tip.style.left=x+"px"; tip.style.top=y+"px";
+}
+function showTipAt(d,el){
+  tip.innerHTML=tipHtml(d); tip.style.opacity="1";
+  const r=el.getBoundingClientRect();
+  let x=r.left, y=r.bottom+8;
+  if(x+tip.offsetWidth>innerWidth) x=innerWidth-tip.offsetWidth-10;
+  if(y+tip.offsetHeight>innerHeight) y=r.top-tip.offsetHeight-8;
+  tip.style.left=x+"px"; tip.style.top=y+"px";
+}
+function hideTip(){ tip.style.opacity="0"; }
+
+/* ===== Utils ===== */
+function cap(s){return s[0].toUpperCase()+s.slice(1);}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function prefersReduced(){return matchMedia("(prefers-reduced-motion:reduce)").matches;}
+
+$("#stat-total").textContent=DATA.length;
+
+render();
+</script>
+</body>
+</html>
